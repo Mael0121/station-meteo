@@ -2,32 +2,97 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Station météo</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#2a5298">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&display=swap" rel="stylesheet">
   <style>
-    body { /* stylé comme tu veux */ }
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: linear-gradient(to bottom, #1e3c72, #2a5298);
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      text-align: center;
+    }
+    .container {
+      background: rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      max-width: 400px;
+      width: 90%;
+    }
+    h1 {
+      font-size: 1.8em;
+      margin-bottom: 20px;
+    }
+    .reading {
+      font-size: 1.4em;
+      margin: 10px 0;
+      font-weight: 700;
+    }
+    .label {
+      font-size: 0.9em;
+      color: #ddd;
+    }
+    .timestamp {
+      font-size: 0.85em;
+      margin-top: 20px;
+      color: #ccc;
+    }
   </style>
 </head>
 <body>
-  <h1>🌤️ Station météo</h1>
-  <div>Température: <span id="temp">--</span> °C</div>
-  <div>Humidité: <span id="hum">--</span> %</div>
+  <div class="container">
+    <h1>🌤️ Station Météo</h1>
+    <div class="reading">
+      🌡️ <span id="temp">--</span> °C
+      <div class="label">Température</div>
+    </div>
+    <div class="reading">
+      💧 <span id="hum">--</span> %
+      <div class="label">Humidité</div>
+    </div>
+    <div class="timestamp">
+      Dernière mise à jour : <br><span id="time">--</span>
+    </div>
+  </div>
+
   <script>
     const channelId = "3006958";
+
+    function formatDate(isoString) {
+      const d = new Date(isoString);
+      return d.toLocaleString('fr-FR', {
+        weekday: 'short', year: 'numeric', month: 'short', day: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      });
+    }
+
     function fetchData() {
       fetch(`https://api.thingspeak.com/channels/${channelId}/feeds.json?results=1`)
         .then(r => r.json())
         .then(obj => {
-          const last = obj.feeds.pop();
+          const last = obj.feeds[0];
           document.getElementById("temp").textContent = parseFloat(last.field1).toFixed(1);
           document.getElementById("hum").textContent = parseFloat(last.field2).toFixed(1);
+          document.getElementById("time").textContent = formatDate(last.created_at);
         })
-        .catch(console.error);
+        .catch(err => {
+          document.getElementById("time").textContent = "Erreur de récupération";
+          console.error(err);
+        });
     }
+
     fetchData();
-    setInterval(fetchData, 60000); // toutes les minutes
+    setInterval(fetchData, 60000);
+
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('service-worker.js');
     }
