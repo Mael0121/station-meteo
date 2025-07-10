@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Station météo</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2a5298">
+  <style>
+    body { /* stylé comme tu veux */ }
+  </style>
+</head>
+<body>
+  <h1>🌤️ Station météo</h1>
+  <div>Température: <span id="temp">--</span> °C</div>
+  <div>Humidité: <span id="hum">--</span> %</div>
+  <script>
+    const channelId = "3006958";
+    function fetchData() {
+      fetch(`https://api.thingspeak.com/channels/${channelId}/feeds.json?results=1`)
+        .then(r => r.json())
+        .then(obj => {
+          const last = obj.feeds.pop();
+          document.getElementById("temp").textContent = parseFloat(last.field1).toFixed(1);
+          document.getElementById("hum").textContent = parseFloat(last.field2).toFixed(1);
+        })
+        .catch(console.error);
+    }
+    fetchData();
+    setInterval(fetchData, 60000); // toutes les minutes
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js');
+    }
+  </script>
+</body>
+</html>
