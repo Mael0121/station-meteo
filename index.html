@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Station météo</title>
-  <link rel="icon" type="image/png" href="icon.png">
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#2a5298">
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#2a5298" />
+  <link rel="icon" type="image/png" href="favicon.png" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       font-family: 'Outfit', sans-serif;
@@ -15,9 +16,10 @@
       color: #fff;
       display: flex;
       justify-content: center;
-      align-items: center;
-      height: 100vh;
+      align-items: start;
+      min-height: 100vh;
       margin: 0;
+      padding: 20px 10px;
       text-align: center;
     }
     .container {
@@ -26,10 +28,9 @@
       padding: 30px;
       border-radius: 20px;
       box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-      max-width: 400px;
+      max-width: 420px;
       width: 100%;
       box-sizing: border-box;
-      margin: 0 10px;
     }
     h1 {
       font-size: 1.8em;
@@ -49,6 +50,20 @@
       margin-top: 20px;
       color: #ccc;
     }
+    #chartContainer {
+      margin-top: 30px;
+      display: none;
+    }
+    #historyBtn {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 1em;
+      border: none;
+      border-radius: 10px;
+      background-color: #ffffff33;
+      color: white;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -63,12 +78,21 @@
       <div class="label">Humidité</div>
     </div>
     <div class="timestamp">
-      Dernière mise à jour : <br><span id="time">--</span>
+      Dernière mise à jour :<br><span id="time">--</span>
+    </div>
+
+    <button id="historyBtn">📈 Afficher l'historique</button>
+
+    <div id="chartContainer">
+      <canvas id="chart" width="300" height="200"></canvas>
     </div>
   </div>
 
   <script>
     const channelId = "3006958";
+    const tempSpan = document.getElementById("temp");
+    const humSpan = document.getElementById("hum");
+    const timeSpan = document.getElementById("time");
 
     function formatDate(isoString) {
       const d = new Date(isoString);
@@ -78,26 +102,77 @@
       });
     }
 
-    function fetchData() {
+    function fetchLatest() {
       fetch(`https://api.thingspeak.com/channels/${channelId}/feeds.json?results=1`)
         .then(r => r.json())
         .then(obj => {
           const last = obj.feeds[0];
-          document.getElementById("temp").textContent = parseFloat(last.field1).toFixed(1);
-          document.getElementById("hum").textContent = parseFloat(last.field2).toFixed(1);
-          document.getElementById("time").textContent = formatDate(last.created_at);
+          tempSpan.textContent = parseFloat(last.field1).toFixed(1);
+          humSpan.textContent = parseFloat(last.field2).toFixed(1);
+          timeSpan.textContent = formatDate(last.created_at);
         })
         .catch(err => {
-          document.getElementById("time").textContent = "Erreur de récupération";
+          timeSpan.textContent = "Erreur de récupération";
           console.error(err);
         });
     }
 
-    fetchData();
-    setInterval(fetchData, 60000);
+    fetchLatest();
+    setInterval(fetchLatest, 60000);
 
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('service-worker.js');
+    // Graphique Chart.js
+    const historyBtn = document.getElementById("historyBtn");
+    const chartContainer = document.getElementById("chartContainer");
+    let chartDrawn = false;
+
+    historyBtn.addEventListener("click", () => {
+      if (chartDrawn) {
+        chartContainer.style.display = chartContainer.style.display === "none" ? "block" : "none";
+        return;
+      }
+      fetch(`https://api.thingspeak.com/channels/${channelId}/feeds.json?results=100`)
+        .then(r => r.json())
+        .then(obj => {
+          const labels = obj.feeds.map(f => new Date(f.created_at).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'}));
+          const tempData = obj.feeds.map(f => parseFloat(f.field1));
+          const humData = obj.feeds.map(f => parseFloat(f.field2));
+
+          const ctx = document.getElementById("chart").getContext("2d");
+          new Chart(ctx, {
+            type: "line",
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  label: "Température (°C)",
+                  data: tempData,
+                  borderColor: "#ffcc00",
+                  backgroundColor: "rgba(255, 204, 0, 0.1)",
+                  tension: 0.2
+                },
+                {
+                  label: "Humidité (%)",
+                  data: humData,
+                  borderColor: "#00e6e6",
+                  backgroundColor: "rgba(0, 230, 230, 0.1)",
+                  tension: 0.2
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              scales: {
+                y: { beginAtZero: true }
+              }
+            }
+          });
+          chartContainer.style.display = "block";
+          chartDrawn = true;
+        });
+    });
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("service-worker.js");
     }
   </script>
 </body>
