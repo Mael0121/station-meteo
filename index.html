@@ -105,10 +105,12 @@
 
     <hr style="margin: 20px 0; border: 0; border-top: 1px solid #ccc;" />
 
-    <div>
-      <button onclick="changeDay(-1)">⬅️ Jour précédent</button>
-      <input type="date" id="datePicker">
-      <button onclick="changeDay(1)">Jour suivant ➡️</button>
+    <div style="display: flex; flex-direction: column; align-items: center;">
+      <input type="date" id="datePicker" style="margin-bottom: 10px;" />
+      <div style="display: flex; gap: 10px;">
+        <button onclick="changeDay(-1)">⬅️ Jour précédent</button>
+        <button onclick="changeDay(1)">Jour suivant ➡️</button>
+      </div>
     </div>
 
     <div id="noData" style="display:none;">⚠️ Aucune donnée disponible pour cette journée.</div>
