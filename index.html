@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-theme="auto">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,10 +10,27 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
+    :root {
+      --bg: linear-gradient(to bottom, #1e3c72, #2a5298);
+      --text: #fff;
+      --card: rgba(255, 255, 255, 0.1);
+      --accent: #ffcc00;
+      --grid: #444;
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: linear-gradient(to bottom, #f3f3f3, #ddd);
+        --text: #222;
+        --card: rgba(0, 0, 0, 0.05);
+        --accent: #d18b00;
+        --grid: #aaa;
+      }
+    }
+
     body {
       font-family: 'Outfit', sans-serif;
-      background: linear-gradient(to bottom, #1e3c72, #2a5298);
-      color: #fff;
+      background: var(--bg);
+      color: var(--text);
       display: flex;
       justify-content: center;
       align-items: start;
@@ -23,11 +40,11 @@
       text-align: center;
     }
     .container {
-      background: rgba(255,255,255,0.1);
+      background: var(--card);
       backdrop-filter: blur(10px);
       padding: 30px;
       border-radius: 20px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
       max-width: 420px;
       width: 100%;
       box-sizing: border-box;
@@ -43,15 +60,15 @@
     }
     .label {
       font-size: 0.9em;
-      color: #ddd;
+      color: var(--text);
+      opacity: 0.7;
     }
-    .timestamp {
+    .timestamp, .stats, #gapNotice, #noData {
       font-size: 0.85em;
-      margin-top: 20px;
-      color: #ccc;
-    }
-    #chartContainer {
-      margin-top: 30px;
+      margin-top: 15px;
+      color: var(--text);
+      opacity: 0.8;
+      white-space: pre-line;
     }
     canvas {
       margin: 20px 0;
@@ -63,12 +80,11 @@
       border: none;
       border-radius: 10px;
       background-color: #ffffff33;
-      color: white;
+      color: var(--text);
       cursor: pointer;
     }
     input[type="date"] {
       background-color: #ffffff22;
-      color: white;
     }
   </style>
 </head>
@@ -95,21 +111,18 @@
       <button onclick="changeDay(1)">Jour suivant ➡️</button>
     </div>
 
-    <div id="noData" style="display:none; margin-top:20px; color:#ffccaa; font-size: 0.95em;">
-      ⚠️ Aucune donnée disponible pour cette journée.
-    </div>
-
-    <div id="gapNotice" style="display:none; margin-top:10px; color:#ffccaa; font-size: 0.85em;"></div>
+    <div id="noData" style="display:none;">⚠️ Aucune donnée disponible pour cette journée.</div>
+    <div id="gapNotice" style="display:none;"></div>
+    <div id="stats" class="stats" style="display:none;"></div>
 
     <div id="chartContainer">
       <canvas id="tempChart" width="300" height="200"></canvas>
       <canvas id="humChart" width="300" height="200"></canvas>
     </div>
   </div>
-
-  <script>
+    <script>
     const channelId = "3006958";
-    const intervalMinutes = 1; // Changer si tes mesures sont moins fréquentes
+    const intervalMinutes = 1;
 
     const tempSpan = document.getElementById("temp");
     const humSpan = document.getElementById("hum");
@@ -118,16 +131,15 @@
 
     let tempChart, humChart;
 
-    function pad(n) {
-      return n < 10 ? '0' + n : n;
-    }
+    const pad = n => n < 10 ? '0' + n : n;
+    const getISODate = date => date.getFullYear() + "-" + pad(date.getMonth() + 1) + "-" + pad(date.getDate());
 
-    function getISODate(date) {
-      return date.getFullYear() + "-" + pad(date.getMonth() + 1) + "-" + pad(date.getDate());
-    }
+    const today = new Date();
+    const urlDateParam = new URLSearchParams(location.search).get("date");
+    const selectedDate = urlDateParam ? new Date(urlDateParam) : today;
 
-    function formatDate(isoString) {
-      const d = new Date(isoString);
+    function formatDate(iso) {
+      const d = new Date(iso);
       return d.toLocaleString('fr-FR', {
         weekday: 'short', year: 'numeric', month: 'short', day: 'numeric',
         hour: '2-digit', minute: '2-digit', second: '2-digit'
@@ -137,7 +149,9 @@
     function changeDay(offset) {
       const current = new Date(datePicker.value);
       current.setDate(current.getDate() + offset);
-      datePicker.value = getISODate(current);
+      const iso = getISODate(current);
+      datePicker.value = iso;
+      history.replaceState({}, '', `?date=${iso}`);
       loadHistoryForDate(current);
     }
 
@@ -152,7 +166,6 @@
         })
         .catch(err => {
           timeSpan.textContent = "Erreur de récupération";
-          console.error(err);
         });
     }
 
@@ -163,65 +176,77 @@
         .then(r => r.json())
         .then(obj => {
           const feeds = obj.feeds;
-          const chartEl = document.getElementById("chartContainer");
-          const noDataEl = document.getElementById("noData");
+          const labels = [], tempData = [], humData = [], gapTimes = [], tList = [], hList = [];
+
+          feeds.forEach(f => {
+            const time = new Date(f.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+            labels.push(time);
+
+            const t = f.field1 !== null ? parseFloat(f.field1) : null;
+            const h = f.field2 !== null ? parseFloat(f.field2) : null;
+
+            tempData.push(t);
+            humData.push(h);
+
+            if (t !== null) tList.push(t);
+            if (h !== null) hList.push(h);
+            if (t === null || h === null) gapTimes.push(time);
+          });
+
           const gapNotice = document.getElementById("gapNotice");
+          const noDataEl = document.getElementById("noData");
+          const chartEl = document.getElementById("chartContainer");
+          const statsEl = document.getElementById("stats");
 
           if (!feeds || feeds.length === 0) {
             chartEl.style.display = "none";
             noDataEl.style.display = "block";
             gapNotice.style.display = "none";
+            statsEl.style.display = "none";
             if (tempChart) tempChart.destroy();
             if (humChart) humChart.destroy();
             return;
           }
 
           noDataEl.style.display = "none";
-
-          const labels = feeds.map(f => new Date(f.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }));
-          const tempData = [];
-          const humData = [];
-          const gapTimes = [];
-
-          feeds.forEach(f => {
-            const t = f.field1 !== null ? parseFloat(f.field1) : null;
-            const h = f.field2 !== null ? parseFloat(f.field2) : null;
-            tempData.push(t);
-            humData.push(h);
-            if (t === null || h === null) {
-              const timeStr = new Date(f.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-              gapTimes.push(timeStr);
-            }
-          });
+          chartEl.style.display = "block";
 
           if (gapTimes.length > 0) {
             const totalMinutes = gapTimes.length * intervalMinutes;
-            const text = `⚠️ ${gapTimes.length} coupure${gapTimes.length > 1 ? "s" : ""} détectée${gapTimes.length > 1 ? "s" : ""} (≈ ${totalMinutes} min)\n🕓 À : ${gapTimes.join(", ")}`;
             gapNotice.style.display = "block";
-            gapNotice.innerText = text;
+            gapNotice.innerText = `⚠️ ${gapTimes.length} coupure${gapTimes.length > 1 ? "s" : ""} détectée${gapTimes.length > 1 ? "s" : ""} (≈ ${totalMinutes} min)\n🕓 À : ${gapTimes.join(", ")}`;
           } else {
             gapNotice.style.display = "none";
           }
 
+          const avg = arr => arr.reduce((a, b) => a + b, 0) / arr.length;
+          const stat = (label, arr) => `${label} : min ${Math.min(...arr).toFixed(1)} / max ${Math.max(...arr).toFixed(1)} / moy ${avg(arr).toFixed(1)}`;
+
+          statsEl.style.display = "block";
+          statsEl.innerText = `🌡️ ${stat("Température", tList)}\n💧 ${stat("Humidité", hList)}`;
+
           if (tempChart) tempChart.destroy();
           if (humChart) humChart.destroy();
+
+          const color = getComputedStyle(document.body).color;
+          const grid = getComputedStyle(document.body).getPropertyValue('--grid');
 
           const commonOptions = {
             responsive: true,
             plugins: {
-              legend: { labels: { color: '#fff' } },
-              title: { display: true, color: '#fff', font: { size: 16 } }
+              legend: { labels: { color } },
+              title: { display: true, color, font: { size: 16 } }
             },
             scales: {
-              x: { ticks: { color: '#fff' }, grid: { color: '#444' } },
-              y: { ticks: { color: '#fff' }, grid: { color: '#444' }, beginAtZero: true }
+              x: { ticks: { color }, grid: { color: grid } },
+              y: { ticks: { color }, grid: { color: grid }, beginAtZero: true }
             }
           };
 
           tempChart = new Chart(document.getElementById("tempChart"), {
             type: "line",
             data: {
-              labels: labels,
+              labels,
               datasets: [{
                 label: "Température (°C)",
                 data: tempData,
@@ -242,7 +267,7 @@
           humChart = new Chart(document.getElementById("humChart"), {
             type: "line",
             data: {
-              labels: labels,
+              labels,
               datasets: [{
                 label: "Humidité (%)",
                 data: humData,
@@ -259,20 +284,30 @@
               }
             }
           });
-
-          chartEl.style.display = "block";
         });
     }
 
-    const today = new Date();
-    datePicker.value = getISODate(today);
-    loadHistoryForDate(today);
+    datePicker.value = getISODate(selectedDate);
+    loadHistoryForDate(selectedDate);
     fetchLatest();
     setInterval(fetchLatest, 60000);
 
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("service-worker.js");
-    }
+    if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('service-worker.js?v=2').then(reg => {
+    reg.onupdatefound = () => {
+      const newWorker = reg.installing;
+      newWorker.onstatechange = () => {
+        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          const banner = document.createElement('div');
+          banner.innerText = "🚀 Nouvelle version disponible ! Cliquez pour recharger.";
+          banner.style.cssText = "position:fixed;bottom:0;left:0;right:0;background:#ffcc00;color:#000;padding:10px;text-align:center;cursor:pointer;font-weight:bold;z-index:1000";
+          banner.onclick = () => window.location.reload();
+          document.body.appendChild(banner);
+        }
+      };
+    };
+  });
+}
   </script>
 </body>
 </html>
