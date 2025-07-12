@@ -9,6 +9,7 @@
   <link rel="icon" type="image/png" href="icon.png" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0/dist/chartjs-plugin-annotation.min.js"></script>
   <style>
     :root {
       --bg: linear-gradient(to bottom, #1e3c72, #2a5298);
@@ -270,7 +271,25 @@
               ...commonOptions,
               plugins: {
                 ...commonOptions.plugins,
-                title: { ...commonOptions.plugins.title, text: "Température" }
+                title: { ...commonOptions.plugins.title, text: "Température" },
+                annotation: {
+                  annotations: {
+                    seuilTemp: {
+                      type: 'line',
+                      yMin: 30,
+                      yMax: 30,
+                      borderColor: 'red',
+                      borderWidth: 2,
+                      label: {
+                        content: '⚠ 30°C',
+                        enabled: true,
+                        position: 'end',
+                        backgroundColor: 'red',
+                        color: 'white'
+                      }
+                    }
+                  }
+                }
               }
             }
           });
@@ -291,7 +310,25 @@
               ...commonOptions,
               plugins: {
                 ...commonOptions.plugins,
-                title: { ...commonOptions.plugins.title, text: "Humidité" }
+                title: { ...commonOptions.plugins.title, text: "Humidité" },
+                annotation: {
+                  annotations: {
+                    seuilHum: {
+                      type: 'line',
+                      yMin: 30,
+                      yMax: 30,
+                      borderColor: '#00e6e6',
+                      borderWidth: 2,
+                      label: {
+                        content: '💧 30%',
+                        enabled: true,
+                        position: 'end',
+                        backgroundColor: '#00e6e6',
+                        color: 'black'
+                      }
+                    }
+                  }
+                }
               }
             }
           });
