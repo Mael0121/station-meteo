@@ -93,9 +93,6 @@
   </style>
 </head>
 <body>
-  <div id="loading" style="display:none; margin-top: 20px;">
-    <div style="border: 4px solid rgba(255,255,255,0.3); border-top: 4px solid #ffcc00; border-radius: 50%; width: 32px; height: 32px; animation: spin 1s linear infinite; margin: 0 auto;"></div>
-  </div>
   <div class="container">
     <h1>🌤️ Station Météo</h1>
     <div class="reading">
@@ -120,6 +117,9 @@
       </div>
     </div>
 
+    <div id="loading" style="display:none; margin-top: 20px;">
+      <div style="border: 4px solid rgba(255,255,255,0.3); border-top: 4px solid #ffcc00; border-radius: 50%; width: 32px; height: 32px; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+    </div>
     <div id="noData" style="display:none;">⚠️ Aucune donnée disponible pour cette journée.</div>
     <div id="gapNotice" style="display:none;"></div>
     <div id="stats" class="stats" style="display:none;"></div>
