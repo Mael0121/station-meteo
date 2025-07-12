@@ -86,9 +86,16 @@
     input[type="date"] {
       background-color: #ffffff22;
     }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
+  <div id="loading" style="display:none; margin-top: 20px;">
+    <div style="border: 4px solid rgba(255,255,255,0.3); border-top: 4px solid #ffcc00; border-radius: 50%; width: 32px; height: 32px; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+  </div>
   <div class="container">
     <h1>🌤️ Station Météo</h1>
     <div class="reading">
@@ -172,6 +179,7 @@
     }
 
     function loadHistoryForDate(date) {
+      document.getElementById("loading").style.display = "block";
       const start = getISODate(date) + "T00:00:00Z";
       const end = getISODate(date) + "T23:59:59Z";
       fetch(`https://api.thingspeak.com/channels/${channelId}/feeds.json?start=${start}&end=${end}`)
@@ -201,6 +209,7 @@
           const statsEl = document.getElementById("stats");
 
           if (!feeds || feeds.length === 0) {
+            document.getElementById("loading").style.display = "none";
             chartEl.style.display = "none";
             noDataEl.style.display = "block";
             gapNotice.style.display = "none";
@@ -244,7 +253,7 @@
               y: { ticks: { color }, grid: { color: grid }, beginAtZero: true }
             }
           };
-
+          document.getElementById("loading").style.display = "none";
           tempChart = new Chart(document.getElementById("tempChart"), {
             type: "line",
             data: {
