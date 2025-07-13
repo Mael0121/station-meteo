@@ -178,8 +178,13 @@
 
     function loadHistoryForDate(date) {
       document.getElementById("loading").style.display = "block";
-      const start = getISODate(date) + "T00:00:00Z";
-      const end = getISODate(date) + "T23:59:59Z";
+      // Ajuste l'intervalle UTC pour couvrir toute la journée locale
+      const localMidnight = new Date(date.setHours(0, 0, 0, 0));
+      const startUTC = new Date(localMidnight.getTime() - (localMidnight.getTimezoneOffset() * 60000));
+      const endUTC = new Date(startUTC.getTime() + 24 * 60 * 60 * 1000 - 1000);
+
+      const start = startUTC.toISOString();
+      const end = endUTC.toISOString();
       fetch(`https://api.thingspeak.com/channels/${channelId}/feeds.json?start=${start}&end=${end}`)
         .then(r => r.json())
         .then(obj => {
