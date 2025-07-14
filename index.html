@@ -182,7 +182,7 @@
       const localMidnight = new Date(date);
       localMidnight.setHours(0, 0, 0, 0);
       
-      const startUTC = new Date(localMidnight.getTime() - (localMidnight.getTimezoneOffset() * 60000));
+      const startUTC = new Date(localMidnight.getTime() + (localMidnight.getTimezoneOffset() * 60000));
       const endUTC = new Date(startUTC.getTime() + 24 * 60 * 60 * 1000 - 1000);
 
       const start = startUTC.toISOString();
